@@ -1,153 +1,115 @@
-# 📩 Crawl4AI Gmail POC
+# Gmail Processing: Web Crawler vs. API
 
-This project is a **proof of concept (POC)** for crawling Gmail inbox content, transforming it with an LLM, and storing structured results into MongoDB.
-It combines:
+This repository contains two different implementations for fetching and processing emails from a Gmail account, demonstrating the evolution from a fragile web-crawling Proof of Concept (PoC) to a robust, production-ready API-based solution.
 
-* **[Crawl4AI](https://github.com/unclecode/crawl4ai)** → to automate Gmail login and scrape inbox content.
-* **Groq LLM** → to parse raw HTML into structured JSON.
-* **FastAPI** → to provide an API endpoint that stores parsed results.
-* **MongoDB** → to persist the structured email data.
+1.  **Web Crawler PoC (`web_crawler_poc/`)**: A simple script using `Crawl4AI` to automate a browser, log in with a username/password, and scrape email content directly from the Gmail UI.
+2.  **Gmail API (`gmail_api_production/`)**: A secure and reliable script using the official **Google Gmail API** with OAuth 2.0 to fetch emails, ensuring it's not affected by UI changes and is compatible with 2-Step Verification.
 
----
+## ⭐ Comparison of Methods
 
-## ⚙️ Features
-
-* Automates Gmail login (with username/password).
-* Searches Gmail inbox for a keyword (default: `"security"`).
-* Scrapes the search result rows directly from the Gmail UI.
-* Uses **Groq’s LLM** to parse the raw HTML into JSON:
-
-  ```json
-  {
-    "emails": [
-      {
-        "sender": "example@example.com",
-        "subject": "Your account update",
-        "snippet": "Some preview text here...",
-        "time": "Sep 15, 2025"
-      }
-    ]
-  }
-  ```
-* Uploads the structured JSON to a **FastAPI endpoint**.
-* FastAPI saves the results into MongoDB.
-
----
+| Feature              | Web Crawler (PoC)                               | Gmail API (Recommended)                                   |
+| -------------------- | ----------------------------------------------- | --------------------------------------------------------- |
+| **Method** | Simulates a user in a browser (Playwright)      | Direct communication with Google's servers (OAuth 2.0)    |
+| **Security** | 🔴 **Low**: Requires storing password in `.env` | ✅ **High**: Uses secure, short-lived tokens. No password needed. |
+| **Reliability** | 🔴 **Low**: Breaks if Gmail changes its HTML/CSS. | ✅ **High**: Based on a stable, versioned API.            |
+| **2-Step Verification**| Not supported.                                  | Fully supported.                                          |
+| **Setup** | Simple (install libraries, set `.env`)          | More involved (one-time Google Cloud project setup).      |
+| **Use Case** | Quick, temporary prototypes.                    | Production applications, long-term and reliable tasks.    |
 
 ## 📂 Project Structure
 
 ```
 .
-├── crawler.py   # Gmail crawler + Groq transformer + uploader
-├── main.py      # FastAPI + MongoDB API server
-├── .env         # Environment variables
-└── requirements.txt
+├── .gitignore
+├── README.md
+├── .env
+│
+├── web_crawler_poc/
+│   ├── crawler.py         # The crawler script
+│   ├── main.py            # Its FastAPI server
+│   └── requirements.txt
+│
+└── gmail_api_production/
+    ├── gmail_api_processor.py # The API client script
+    ├── main_gmail_api.py      # Its FastAPI server
+    ├── requirements.txt
+    └── credentials.json       # (Secret - Not in Git)
 ```
 
----
+## 🚀 Getting Started
 
-## 🔑 Environment Variables
+### 1. Clone the Repository
 
-Create a `.env` file in the project root with:
+```bash
+git clone <your-repository-url>
+cd <your-repository-name>
+```
+
+### 2. Configure Environment Variables
+
+Create a `.env` file in the root of the project. You only need to fill in the variables for the method you intend to run.
 
 ```env
-# Gmail login credentials (for POC only; see note on 2FA)
-GMAIL_USER=your_email@gmail.com
-GMAIL_PASSWORD=your_password
-
-# Groq API key
+# --- For Web Crawler PoC ---
+# (Use a dummy account without 2-Step Verification)
+GMAIL_USER=your_dummy_email@gmail.com
+GMAIL_PASSWORD=your_dummy_password
 GROQ_API_KEY=your_groq_api_key
 
-# MongoDB connection
-MONGO_URI=mongodb://localhost:27017
+# --- For Both Implementations ---
+MONGO_URI="your_mongodb_connection_string"
 ```
-
-⚠️ **Note**: This demo assumes password login without 2FA. For accounts with 2FA, consider using OAuth2 or IMAP with app passwords.
-
----
 
 ## ▶️ How to Run
 
-### 1. Install dependencies
+You can run either implementation independently.
 
-```bash
-pip install -r requirements.txt
-```
+### Method 1: Web Crawler PoC
 
-(Dependencies include: `crawl4ai`, `groq`, `fastapi`, `uvicorn`, `pymongo`, `python-dotenv`, `requests`)
+This method is quick to run but is not recommended for anything beyond a simple test.
 
----
+1.  **Navigate to the folder:**
+    ```bash
+    cd web_crawler_poc
+    ```
+2.  **Install dependencies:**
+    ```bash
+    pip install -r requirements.txt
+    playwright install # Installs necessary browser binaries
+    ```
+3.  **Start the FastAPI server** (in one terminal):
+    ```bash
+    uvicorn main:app --reload
+    ```
+4.  **Run the crawler script** (in a second terminal):
+    ```bash
+    python crawler.py
+    ```
 
-### 2. Start FastAPI backend
+### Method 2: Gmail API (Recommended)
 
-```bash
-uvicorn main:app --reload
-```
+This method is secure, reliable, and the industry-standard approach.
 
-* Runs the API server at: `http://127.0.0.1:8000`
-* Endpoint available:
+1.  **One-Time Setup: Google Cloud**
+    * Enable the **Gmail API** in your Google Cloud project.
+    * Configure the **OAuth Consent Screen** (as an External app) and add your email as a Test User.
+    * Create **OAuth 2.0 Client ID** credentials for a **Desktop app**.
+    * Download the JSON file, rename it to `credentials.json`, and place it inside the `gmail_api_production/` folder.
 
-  * `POST /upload-emails/` → stores parsed email data into MongoDB
-
----
-
-### 3. Run Gmail Crawler
-
-In another terminal:
-
-```bash
-python crawler.py
-```
-
-* Automates Gmail login.
-* Runs a keyword search (default `"security"`).
-* Scrapes inbox results.
-* Uses Groq LLM to parse into structured JSON.
-* Sends JSON to the FastAPI endpoint → MongoDB.
-
----
-
-### 4. Check MongoDB
-
-```bash
-mongo
-use email_data
-db.parsed_emails.find().pretty()
-```
-
----
-
-## 📝 Example Output in Terminal
-
-```bash
-✅ Login successful!
-Step 4: Performing search for 'security'...
-✅ Search complete. Email rows scraped.
-Step 5: Sending 20000 characters of content to Groq...
-✅ Groq Response (JSON): {'emails': [{'sender': 'alerts@google.com', 'subject': 'Security alert', 'snippet': 'New login detected...', 'time': 'Sep 16, 2025'}]}
-Step 6: Uploading transformed data to FastAPI endpoint...
-
-🎉 SUCCESS! Data uploaded to MongoDB successfully! 🎉
-API Response: {'status': 'success', 'message': '1 emails stored successfully.', 'inserted_ids': ['68c9c809e672582162a5a888']}
-```
-
----
-
-## 🚧 Limitations
-
-* Gmail DOM can change; selectors may break.
-* Does not handle **2FA login**. Use a dummy test account without 2FA for POC.
-* For production: switch to **Gmail API (OAuth2)** instead of crawling the UI.
-
----
-
-## 📌 Roadmap
-
-* [ ] Add OAuth2 Gmail API integration.
-* [ ] Support attachments.
-* [ ] Provide retrieval API (`GET /emails/`).
-* [ ] Dockerize for easier deployment.
-
----
-
-Would you like me to also include a **sample `requirements.txt`** so someone cloning this repo can `pip install -r requirements.txt` without hunting dependencies?
+2.  **Navigate to the folder:**
+    ```bash
+    cd gmail_api_production
+    ```
+3.  **Install dependencies:**
+    ```bash
+    pip install -r requirements.txt
+    ```
+4.  **Start the FastAPI server** (in one terminal):
+    ```bash
+    uvicorn main_gmail_api:app --reload
+    ```
+5.  **Run the API processor script** (in a second terminal):
+    ```bash
+    python gmail_api_processor.py
+    ```
+    * On the first run, a browser window will open, asking you to log in and grant permission. After approval, a `token.json` file will be created, and you won't need to log in again.
