@@ -1,0 +1,9 @@
+# Dependencies for the Web Crawler Proof of Concept
+crawl4ai
+groq
+fastapi
+uvicorn[standard]
+pymongo
+python-dotenv
+requests
+playwright
