@@ -1,0 +1,9 @@
+# Dependencies for the Gmail API Production-Ready Method
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
+fastapi
+uvicorn[standard]
+pymongo
+python-dotenv
+requests
